@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Delivery Network Optimization Using MST</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="top-text">
+    <h1>Delivery Network Optimization</h1>
+    <p>Find the cheapest set of routes that connects every delivery location, using Prim's and Kruskal's minimum spanning tree algorithms.</p>
+  </div>
+  <div class="top-actions">
+    <button type="button" id="btn-sample" class="btn">Load sample network</button>
+    <button type="button" id="btn-clear" class="btn btn-danger">Clear all</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ===== 1 and 2: data entry ===== -->
+  <div class="grid-2">
+
+    <section class="panel" id="sec-locations" aria-labelledby="h-locations">
+      <h2 id="h-locations"><span class="num">1</span>Add delivery locations</h2>
+      <form id="location-form" class="row" autocomplete="off">
+        <label class="field grow">
+          <span>Location name</span>
+          <input type="text" id="location-input" maxlength="30" placeholder="e.g. Central Warehouse">
+        </label>
+        <button type="submit" class="btn btn-primary">Add location</button>
+      </form>
+      <p class="msg" id="location-msg" role="status"></p>
+      <ul class="chips" id="location-list"></ul>
+      <p class="empty" id="location-empty">No locations yet. Add at least two to build a network.</p>
+    </section>
+
+    <section class="panel" id="sec-routes" aria-labelledby="h-routes">
+      <h2 id="h-routes"><span class="num">2</span>Add routes and distances</h2>
+      <form id="route-form" class="row" autocomplete="off">
+        <label class="field">
+          <span>From</span>
+          <select id="route-source"></select>
+        </label>
+        <label class="field">
+          <span>To</span>
+          <select id="route-target"></select>
+        </label>
+        <label class="field narrow">
+          <span>Distance</span>
+          <input type="number" id="route-weight" min="0" step="any" placeholder="km">
+        </label>
+        <button type="submit" class="btn btn-primary">Add route</button>
+      </form>
+      <p class="msg" id="route-msg" role="status"></p>
+      <div class="table-wrap short">
+        <table class="data" id="route-table">
+          <thead><tr><th>From</th><th>To</th><th class="num-col">Distance</th><th><span class="sr-only">Remove</span></th></tr></thead>
+          <tbody id="route-body"></tbody>
+        </table>
+      </div>
+      <p class="empty" id="route-empty">No routes yet.</p>
+
+      <details class="generator">
+        <summary>Generate a random network</summary>
+        <form id="gen-form" class="row">
+          <label class="field narrow">
+            <span>Locations</span>
+            <input type="number" id="gen-n" min="2" max="40" value="10">
+          </label>
+          <label class="field">
+            <span>Density</span>
+            <select id="gen-density">
+              <option value="sparse">Sparse (about 2 routes per location)</option>
+              <option value="medium" selected>Medium</option>
+              <option value="dense">Dense (half of all possible routes)</option>
+            </select>
+          </label>
+          <button type="submit" class="btn">Generate</button>
+        </form>
+        <p class="hint">Replaces the current network. Use the benchmark in section 7 for larger sizes.</p>
+      </details>
+    </section>
+  </div>
+
+  <!-- ===== 3: graph ===== -->
+  <section class="panel" id="sec-graph" aria-labelledby="h-graph">
+    <div class="panel-head">
+      <h2 id="h-graph"><span class="num">3</span>Delivery network graph</h2>
+      <div class="panel-tools">
+        <span class="stat" id="graph-stat">0 locations, 0 routes</span>
+        <button type="button" id="btn-layout" class="btn btn-small">Re-arrange</button>
+      </div>
+    </div>
+    <div id="cy" role="img" aria-label="Graph of delivery locations and routes"></div>
+    <p class="msg" id="graph-msg" role="status"></p>
+    <ul class="legend">
+      <li><span class="swatch swatch-base"></span>Possible route</li>
+      <li><span class="swatch swatch-prim"></span>Selected by Prim's</li>
+      <li><span class="swatch swatch-kruskal"></span>Selected by Kruskal's</li>
+    </ul>
+  </section>
+
+  <!-- ===== 4 and 5: algorithms ===== -->
+  <div class="grid-2">
+    <section class="panel" id="sec-prim" aria-labelledby="h-prim">
+      <h2 id="h-prim"><span class="num">4</span>Prim's algorithm</h2>
+      <p class="explain">Grows one tree from a start location, always adding the cheapest route to a new location.</p>
+      <div class="row">
+        <label class="field grow">
+          <span>Start from</span>
+          <select id="prim-start"></select>
+        </label>
+        <button type="button" id="btn-prim" class="btn btn-prim">Run Prim's</button>
+      </div>
+      <div class="output" id="prim-out"></div>
+    </section>
+
+    <section class="panel" id="sec-kruskal" aria-labelledby="h-kruskal">
+      <h2 id="h-kruskal"><span class="num">5</span>Kruskal's algorithm</h2>
+      <p class="explain">Sorts all routes by distance and adds the cheapest ones that do not form a cycle.</p>
+      <div class="row">
+        <button type="button" id="btn-kruskal" class="btn btn-kruskal">Run Kruskal's</button>
+      </div>
+      <div class="output" id="kruskal-out"></div>
+    </section>
+  </div>
+
+  <!-- ===== 6: comparison ===== -->
+  <section class="panel" id="sec-compare" aria-labelledby="h-compare">
+    <div class="panel-head">
+      <h2 id="h-compare"><span class="num">6</span>Compare results</h2>
+      <button type="button" id="btn-compare" class="btn btn-primary">Run both and compare</button>
+    </div>
+    <div class="output" id="compare-out">
+      <p class="empty show">Run both algorithms to see them side by side.</p>
+    </div>
+  </section>
+
+  <!-- ===== 7: benchmark (extra) ===== -->
+  <section class="panel" id="sec-bench" aria-labelledby="h-bench">
+    <div class="panel-head">
+      <h2 id="h-bench"><span class="num">7</span>Benchmark on generated networks</h2>
+      <button type="button" id="btn-bench" class="btn">Run benchmark</button>
+    </div>
+    <p class="explain">Compares both algorithms on random networks of different sizes and densities. Times are averages over repeated runs, in milliseconds. Nothing is drawn, so large networks are fine.</p>
+    <p class="msg" id="bench-status" role="status"></p>
+    <div class="table-wrap">
+      <table class="data" id="bench-table">
+        <thead>
+          <tr>
+            <th>Locations</th><th>Routes</th><th>Density</th>
+            <th class="num-col">Prim's (ms)</th><th class="num-col">Kruskal's (ms)</th>
+            <th>Faster</th><th>Same cost</th>
+          </tr>
+        </thead>
+        <tbody id="bench-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  Delivery Network Optimization Using MST. Built with HTML, CSS, JavaScript and Cytoscape.js. Data is saved in this browser only.
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<script src="algorithms.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
